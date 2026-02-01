@@ -83,7 +83,20 @@ if len(args)>0:
                     break
 
     elif command == "checkout":
-        commit_hash = args[1]
+        target = args[1]
+
+        branch_path = f"{repo.gitdir}/refs/heads/{target}"
+        if os.path.exists(branch_path):
+            with open(branch_path,'r') as file:
+                commit_hash = file.read().strip()
+            head_content = f"ref: refs/heads/{target}"
+            print(f"Switching to branch {target}")
+        else:
+            commit_hash = target
+            print(f"Detached head at {target}")
+            head_content = target
+
+
         _,content_encoded = repo.read_object(commit_hash)
         content = content_encoded.decode("utf-8")
 
@@ -108,7 +121,7 @@ if len(args)>0:
 
         print(f"Checkout of commit {commit_hash} complete.")
         with open("./.mygit/HEAD.txt", "w") as f:
-            f.write(commit_hash)
+            f.write(head_content)
 
     elif command=="add":
         file_name = args[1]
@@ -124,9 +137,9 @@ if len(args)>0:
         date_with_time = datetime.datetime.now()
         formatted_date = date_with_time.strftime("%Y-%m-%d %H:%M:%S")
 
-        if os.path.exists("./.mygit/HEAD.txt"):
-            with open('./.mygit/HEAD.txt', 'r') as file:
-                parent_hash = file.read().strip()
+        parent_hash = repo.get_current_head()
+
+        if parent_hash:
             commit_content += f"parent {parent_hash}\n"
 
         commit_content += f"author Senadha tosena@gmail.com {formatted_date}\n"
@@ -135,10 +148,29 @@ if len(args)>0:
 
         hexcode = repo.hash_object(commit_content.encode('utf-8'), "commit")
 
-        with open("./.mygit/HEAD.txt", 'w') as file:
-            file.write(hexcode)
+        head_path = os.path.join(repo.gitdir, "HEAD.txt")
+        with open(head_path, "r") as file:
+            content = file.read()
+            content_split = content.split()
+            if content_split[0] == "ref:":
+                master_path = os.path.join(repo.gitdir, content_split[1])
+                with open(master_path, "w") as f:
+                    f.write(hexcode)
+            else:
+                with open(head_path, "w") as file2:
+                    file2.write(hexcode)
         print("Tree commited")
         print(hexcode)
+
+    elif command=="branch":
+        branch_name = args[1]
+        last_commit_hash = repo.get_current_head()
+
+        with open(f"{repo.gitdir}/refs/heads/{branch_name}",'w') as file:
+            file.write(last_commit_hash)
+
+        print(f"Created {branch_name} at {last_commit_hash}")
+
 
     else:
         print("Command not found")

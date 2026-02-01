@@ -46,7 +46,7 @@ class Repository:
             compressed_data = file.read()
             decompressed_data = zlib.decompress(compressed_data)
             header,body = decompressed_data.split(b'\x00', maxsplit=1)
-            obj_type = header.split()[1].decode('utf-8')
+            obj_type = header.split()[0].decode('utf-8')
             return obj_type,body
 
     def update_index(self,file_name):
